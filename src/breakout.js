@@ -32,7 +32,11 @@ var
 
 		on_mouse: function(ev)
 		{
+		var
+			xi = this.pad.x
+		;
 			this.pad.x = ev.layerX > this.pad.maxx ? this.pad.maxx : ev.layerX;
+			this.pad.vx = (this.pad.x-xi)/3;
 		},
 
 		update: function()
@@ -43,6 +47,7 @@ var
 			if (this.ball.collides(this.pad))
 			{
 				this.ball.vy = -this.ball.vy;
+				this.ball.vx += this.pad.vx;
 				this.ball.y = this.pad.y-this.ball.height-1;
 			}
 		},
@@ -144,6 +149,7 @@ var
 
 		height: 16,
 		width: 48,
+		vx: 0,
 
 		make_small: function()
 		{
