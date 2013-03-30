@@ -2,7 +2,7 @@
 var
 	WIDTH = 320,
 	HEIGHT = 416,
-	MAXX = 290,
+	BOUNDS = { left: 16, top: 16, right: WIDTH-32, bottom: HEIGHT },
 
 	loader = j5g3.loader(),
 	canvas, 
@@ -10,7 +10,15 @@ var
 	assets = {
 		tiles: loader.img('tiles.png'),
 		bg: loader.img('bg_prerendered.png'),
-		logo: loader.img('logo.png')
+		logo: loader.img('logo.png'),
+
+		sound: {
+			brickDeath: loader.audio('brickDeath.wav'),
+			countdownBlip: loader.audio('countdownBlip.wav'),
+			powerdown: loader.audio('powerdown.wav'),
+			powerup: loader.audio('powerup.wav'),
+			recover: loader.audio('recover.wav')
+		}
 	},
 
 	/* scenes */
@@ -41,15 +49,67 @@ var
 
 		update: function()
 		{
-			this.ball.x += this.ball.vx;
-			this.ball.y += this.ball.vy;
+		var
+			ball = this.ball
+		;
+			ball.x += ball.vx;
+			ball.y += ball.vy;
 
-			if (this.ball.collides(this.pad))
+			if (ball.collides(this.pad))
 			{
 				this.ball.vy = -this.ball.vy;
 				this.ball.vx += this.pad.vx;
 				this.ball.y = this.pad.y-this.ball.height-1;
+			} 
+			else if (ball.x > BOUNDS.right)
+			{
+				ball.x = BOUNDS.right;
+				ball.vx = -ball.vx;
 			}
+			else if (ball.x < BOUNDS.left)
+			{
+				ball.x = BOUNDS.left;
+				ball.vx = -ball.vx;
+			} else if (ball.y < BOUNDS.top)
+			{
+				ball.y = BOUNDS.top;
+				ball.vy = -ball.vy;
+			} else if (ball.y > BOUNDS.bottom)
+			{
+				this.lost();
+			}
+		},
+
+		lost: function()
+		{
+		var
+			score = this.score.lives.text = parseInt(this.score.lives.text)-1
+		;
+			if (score===0)
+				this.game_over();
+			else
+				this.reset();
+		},
+
+		game_over: function()
+		{
+			this.stop();
+		},
+
+		do_count: function()
+		{
+			this.count = new Count({ 
+				x: 146, y: 200,
+				on_remove: this.start_game.bind(this)
+			});
+			this.add(this.count);
+		},
+
+		reset: function()
+		{
+			this._update.remove();
+			this.ball.pos(80, 240);
+			this.do_count();
 		},
 
 		setup: function()
@@ -57,6 +117,7 @@ var
 			this.pad = new Pad({ x: 130, y: 368 });
 			this.score = new Score({ x: 20, y: 405 });
 			this.ball = new Ball({ x: 80, y: 240 });
+			this._update = new j5g3.Action(this.update.bind(this));
 
 			this.add([ assets.bg, this.pad, this.ball, this.score ]);
 		},
@@ -64,8 +125,6 @@ var
 		start_game: function()
 		{
 			this._on_mouse = this.on_mouse.bind(this);
-
-			this._update = this.update.bind(this);
 			this.add(this._update);
 
 			canvas.addEventListener('mousemove', this._on_mouse );
@@ -73,11 +132,7 @@ var
 
 		start: function()
 		{
-			this.count = new Count({ 
-				x: 146, y: 200,
-				on_remove: this.start_game.bind(this)
-			});
-			this.add([ this.count ]);
+			this.do_count();
 		},
 
 		destroy: function()
