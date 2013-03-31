@@ -50,16 +50,18 @@ var
 		update: function()
 		{
 		var
-			ball = this.ball
+			ball = this.ball,
+			coll = this.pad.collides(ball)
 		;
-			ball.x += ball.vx;
-			ball.y += ball.vy;
-
-			if (ball.collides(this.pad))
+			if (coll)
 			{
-				this.ball.vy = -this.ball.vy;
-				this.ball.vx += this.pad.vx;
-				this.ball.y = this.pad.y-this.ball.height-1;
+				if (coll.ny)
+					ball.vy = coll.ny*Math.abs(ball.vy); 
+
+				ball.vx = ball.vx + coll.nx * 2 * Math.abs(ball.vx) + this.pad.vx;
+
+				ball.y += coll.ny * coll.penetration;
+				ball.x += coll.nx * coll.penetration;
 			} 
 			else if (ball.x > BOUNDS.right)
 			{
@@ -78,6 +80,9 @@ var
 			{
 				this.lost();
 			}
+
+			ball.x += ball.vx;
+			ball.y += ball.vy;
 		},
 
 		lost: function()
@@ -109,6 +114,7 @@ var
 		{
 			this._update.remove();
 			this.ball.pos(80, 240);
+			this.ball.vx = this.ball.vy = 2;
 			this.do_count();
 		},
 
@@ -170,8 +176,11 @@ var
 			this.three = game.spritesheet.cut(64, 96, 32, 48).scale(0, 0);
 
 			fn(me.one, function() { 
+				assets.sound.countdownBlip.play();
 				fn(me.two, function() { 
+					assets.sound.countdownBlip.play();
 					fn(me.three, function() {
+						assets.sound.countdownBlip.play();
 						me.remove();
 						me.on_remove();
 					}); 
@@ -205,6 +214,8 @@ var
 		height: 16,
 		width: 48,
 		vx: 0,
+		// Use more precise collision
+		collides: j5g3.CollisionQuery.AABB,
 
 		make_small: function()
 		{
