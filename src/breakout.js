@@ -3,9 +3,16 @@ var
 	WIDTH = 320,
 	HEIGHT = 416,
 	BOUNDS = { left: 16, top: 16, right: WIDTH-32, bottom: HEIGHT },
+	MAXV = 4,
+	
+	LEVELS = [
+		[ [0,0,1,2,1,0,0], [2,3,1,1,1,3,2], [0,3,3,3,3,3,0 ]],
+		[ [0,1,2,1,2,1,0], [0,4,4,4,4,4,0], [1,4,3,4,3,4,1], [1,4,4,4,4,4,1], [1,4,0,0,0,4,1], [0,4,4,4,4,4,0] ],
+		[ [0,1,0,2,0,1,0], [1,0,1,3,1,0,1], [1,2,1,3,1,2,1], [1,0,1,3,1,0,1], [0,1,0,0,0,1,0], [4,0,4,0,4,0,4] ],
+		[ [1,2,3,4,3,2,1], [4,0,0,0,0,0,0], [3,0,3,4,1,2,3], [2,0,2,0,0,0,4], [1,0,1,0,1,0,1], [4,0,4,3,2,0,2], [2,1,4,3,2,1,4]]
+	],
 
 	loader = j5g3.loader(),
-	canvas, 
 	
 	assets = {
 		tiles: loader.img('tiles.png'),
@@ -20,20 +27,88 @@ var
 			recover: loader.audio('recover.wav')
 		}
 	},
+	
+	fade = function(obj, a, cb) { 
+		return j5g3.tween({ 
+			target: obj,
+			to: { alpha: a },
+			auto_remove: true, 
+			duration: 30,
+			on_remove: cb
+		});
+	},
 
 	/* scenes */
 	Intro = j5g3.Clip.extend({ 
+		
 		alpha: 0,
 
-		setup: function(p)
+		setup: function()
 		{
 			this.add([
 				assets.bg,
 				j5g3.image(assets.logo).pos(95, 50),
-				j5g3.text({ text: 'Click to start', x: 100, y: 280, font: '20px Arial' })
+				j5g3.text({ text: 'Click to start', x: 100, y: 280, font: '20px Arial' }),
+				fade(this, 1)
 			]);
+			
+			game.stage.on('click', game.start_level, game);
+		},
+		
+		remove: function()
+		{
+			this.add(fade(this, 0, function() { 
+				j5g3.Clip.prototype.remove.apply(this.parent);
+			}));
+			
+			game.stage.un('click', game.start_level);
 		}
+		
 	}), 
+	
+	Blocks = j5g3.Clip.extend({
+		
+		level: 0,
+		blocks: null,
+		collides: j5g3.CollisionTest.AABB,
+		
+		load_level: function(level)
+		{
+		var
+			block, x, y
+		;
+			this.level = level || 0;
+			level = LEVELS[this.level];
+				
+			for (y=0; y<level.length; y++)
+				for (x=0; x<level[y].length; x++)
+				{
+					if (level[y][x])
+					{
+						block = this.blocks[level[y][x]];
+						block = game.spritesheet.sprite(block).pos(x*32, y*16);
+						block.collides = j5g3.CollisionQuery.AABB;
+						
+						this.add(block);
+					}
+				}
+	
+			this.width = level[0].length*32;
+			this.height = level.length*16;
+		},
+		
+		setup: function()
+		{
+			this.blocks = {
+				0: game.spritesheet.slice(0,0,0,0),
+				1: game.spritesheet.slice(0,0,32,16),
+				2: game.spritesheet.slice(0,16, 32,16),
+				3: game.spritesheet.slice(0,32, 32,16),
+				4: game.spritesheet.slice(0,48,32,16)
+			};
+		}
+		
+	}),
 
 	Level = j5g3.Clip.extend({ 
 		alpha: 0,
@@ -51,7 +126,8 @@ var
 		{
 		var
 			ball = this.ball,
-			coll = this.pad.collides(ball)
+			coll = this.pad.collides(ball),
+			result
 		;
 			if (coll)
 			{
@@ -79,26 +155,54 @@ var
 			} else if (ball.y > BOUNDS.bottom)
 			{
 				this.lost();
+			} else if (this.blocks.collides(this.ball))
+			{
+				if ((result = j5g3.CollisionTest.Container.apply(this.blocks, [ this.ball ])))
+				{
+					if (result.ny)
+						ball.vy = result.ny*Math.abs(ball.vy); 
+	
+					ball.vx = ball.vx + result.nx * 2 * Math.abs(ball.vx);
+					result.A.remove();
+					assets.sound.brickDeath.play();
+					this.score.add_score(100);
+				}
+			} else if (this.blocks.frame.next === this.blocks.frame)
+			{
+				this.won();
 			}
+			
+			if (ball.vx>MAXV) ball.vx = MAXV;
+			if (ball.vy>MAXV) ball.vy = MAXV;
 
 			ball.x += ball.vx;
 			ball.y += ball.vy;
+			this.pad.vx = 0;
 		},
 
 		lost: function()
 		{
 		var
-			score = this.score.lives.text = parseInt(this.score.lives.text)-1
+			score = this.score.lives.text = parseInt(this.score.lives.text, 10)-1
 		;
 			if (score===0)
 				this.game_over();
 			else
 				this.reset();
 		},
+		
+		won: function()
+		{
+			this.blocks.load_level(this.blocks.level+1);
+			this.score.level.text = this.blocks.level+1;
+			this.score.add_score(1000);
+			this.reset();
+		},
 
 		game_over: function()
 		{
-			this.stop();
+			this.remove();
+			game.start();
 		},
 
 		do_count: function()
@@ -113,8 +217,7 @@ var
 		reset: function()
 		{
 			this._update.remove();
-			this.ball.pos(80, 240);
-			this.ball.vx = this.ball.vy = 2;
+			this.ball.reset(80, 240);
 			this.do_count();
 		},
 
@@ -123,17 +226,27 @@ var
 			this.pad = new Pad({ x: 130, y: 368 });
 			this.score = new Score({ x: 20, y: 405 });
 			this.ball = new Ball({ x: 80, y: 240 });
+			this.blocks = new Blocks({ x: 60, y: 70 });
+			this.blocks.load_level();
+			
 			this._update = new j5g3.Action(this.update.bind(this));
 
-			this.add([ assets.bg, this.pad, this.ball, this.score ]);
+			this.add([
+				assets.bg, this.pad, this.blocks, this.ball, this.score,
+				j5g3.tween({ 
+					target: this, to: { alpha: 1 }, 
+					duration: 30,
+					auto_remove: true, 
+					on_remove: this.start.bind(this)
+				})
+			]);
 		},
 
 		start_game: function()
 		{
-			this._on_mouse = this.on_mouse.bind(this);
 			this.add(this._update);
 
-			canvas.addEventListener('mousemove', this._on_mouse );
+			game.stage.on('mousemove', this.on_mouse, this);
 		},
 
 		start: function()
@@ -141,9 +254,10 @@ var
 			this.do_count();
 		},
 
-		destroy: function()
+		remove: function()
 		{
-			canvas.removeEventListener('mousemove', this._on_mouse);
+			j5g3.Clip.prototype.remove.apply(this);
+			game.stage.un('mousemove', this.on_mouse);
 		}
 
 	}),
@@ -161,7 +275,7 @@ var
 					j5g3.tween({ 
 						target: clip, to: { sx: 1, sy: 1 },
 						duration: 30, 
-						easing: j5g3.fx.Easing.EaseOutElastic,
+						easing: j5g3.Easing.EaseOutElastic,
 						auto_remove: true,
 						on_remove: function() {
 							clip.remove();
@@ -192,10 +306,16 @@ var
 
 	Ball = j5g3.Clip.extend({
 
-		vx: 2,
-		vy: 2,
+		vx: 3,
+		vy: 3,
 		width: 16,
 		height: 16,
+		
+		reset: function()
+		{
+			this.pos(80, 240);
+			this.vx = this.vy = 3;
+		},
 
 		setup: function()
 		{
@@ -226,8 +346,8 @@ var
 		
 		setup: function()
 		{
-			this.add([ game.spritesheet.cut(0, 64, 48, 16) ]);
-			this.add_frame([ game.spritesheet.cut(0, 80, 32, 16) ]);
+			this.add(game.spritesheet.cut(0, 64, 48, 16));
+			this.add_frame(game.spritesheet.cut(0, 80, 32, 16));
 
 			this.maxx = WIDTH-this.width;
 
@@ -254,6 +374,11 @@ var
 				this.level 
 			]);
 				
+		},
+		
+		add_score: function(val)
+		{
+			this.score.text = parseInt(this.score.text, 10) + val;
 		}
 
 	}),
@@ -265,46 +390,22 @@ var
 
 		use_animation_frame: true,
 
-		start_count: function()
-		{
-			this.intro.remove();
-			this.level.start();
-		},
-
 		start_level: function(ev)
 		{
+			this.intro.remove();
 			this.level = new Level();
-
-			this.stage.add([ 
-				this.level,
-				j5g3.tween({ target: this.intro, to: { alpha: 0 }, auto_remove: true, duration: 30 }),
-				j5g3.tween({ 
-					target: this.level, to: { alpha: 1 }, 
-					duration: 30,
-					auto_remove: true, 
-					on_remove: this.start_count.bind(this)
-				})
-			]);
-
-			this.stage.un('click', this.start_level);
+			this.stage.add(this.level);
+		},
+		
+		start: function()
+		{
+			this.intro = new Intro();
+			this.stage.add(this.intro);
 		},
 	
 		startFn: function()
 		{
 			this.spritesheet = j5g3.spritesheet(assets.tiles);
-			this.intro = new Intro();
-
-			this.stage.add([ 
-				this.intro, 
-				j5g3.tween({ 
-					target: this.intro, 
-					to: { alpha: 1 }, 
-					auto_remove: true, 
-					duration: 30 
-				})
-			]);
-
-			this.stage.on('click', this.start_level, this);
 			this.run();
 		}
 	}),
@@ -314,11 +415,11 @@ var
 
 	loader.ready(function()
 	{
-		canvas = j5g3.dom('CANVAS');
-		canvas.setAttribute('width', WIDTH);
-		canvas.setAttribute('height', HEIGHT);
-
-		document.body.appendChild(canvas);
-
-		game = new Breakout({ stage_settings: { canvas: canvas }});
+		game = new Breakout({ 
+			stage_settings: { 
+				width: WIDTH, height: HEIGHT
+			}
+		});
+		
+		game.start();
 	});
