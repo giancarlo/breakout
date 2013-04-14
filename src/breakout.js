@@ -118,7 +118,7 @@ var
 		var
 			xi = this.pad.x
 		;
-			this.pad.x = ev.layerX > this.pad.maxx ? this.pad.maxx : ev.layerX;
+			this.pad.x = ev.clientX> this.pad.maxx ? this.pad.maxx : ev.clientX;
 			this.pad.vx = (this.pad.x-xi)/3;
 		},
 
