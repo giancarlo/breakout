@@ -165,7 +165,7 @@ var
 					ball.vx = ball.vx + result.nx * 2 * Math.abs(ball.vx);
 					result.A.remove();
 					assets.sound.brickDeath.play();
-					this.score.add_score(100);
+					this.score.add_score(10);
 				}
 			} else if (this.blocks.frame.next === this.blocks.frame)
 			{
@@ -195,7 +195,7 @@ var
 		{
 			this.blocks.load_level(this.blocks.level+1);
 			this.score.level.text = this.blocks.level+1;
-			this.score.add_score(1000);
+			this.score.add_score(100);
 			this.reset();
 		},
 
