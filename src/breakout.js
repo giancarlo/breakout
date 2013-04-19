@@ -86,7 +86,12 @@ var
 					if (level[y][x])
 					{
 						block = this.blocks[level[y][x]];
-						block = game.spritesheet.sprite(block).pos(x*32, y*16);
+						block = game.spritesheet.clip(block)
+							.add_frame(this.remove_block)
+							.go(0)
+							.pos(x*32, y*16)
+							.stop()
+						;
 						block.collides = j5g3.CollisionQuery.AABB;
 						
 						this.add(block);
@@ -97,14 +102,19 @@ var
 			this.height = level.length*16;
 		},
 		
+		remove_block: function()
+		{
+			this.parent.remove();
+		},
+		
 		setup: function()
 		{
 			this.blocks = {
-				0: game.spritesheet.slice(0,0,0,0),
-				1: game.spritesheet.slice(0,0,32,16),
-				2: game.spritesheet.slice(0,16, 32,16),
-				3: game.spritesheet.slice(0,32, 32,16),
-				4: game.spritesheet.slice(0,48,32,16)
+				0: false,
+				1: [ 0, 1, 2, 3, 4 ],
+				2: [ 6, 7, 8, 9, 10],
+				3: [ 12, 13, 14, 15, 16 ],
+				4: [ 18, 19, 20, 21, 22 ]
 			};
 		}
 		
@@ -163,7 +173,7 @@ var
 						ball.vy = result.ny*Math.abs(ball.vy); 
 	
 					ball.vx = ball.vx + result.nx * 2 * Math.abs(ball.vx);
-					result.A.remove();
+					result.A.play();
 					assets.sound.brickDeath.play();
 					this.score.add_score(10);
 				}
@@ -401,11 +411,11 @@ var
 		{
 			this.intro = new Intro();
 			this.stage.add(this.intro);
+			this.spritesheet = j5g3.spritesheet(assets.tiles).grid(6, 9);
 		},
 	
 		startFn: function()
 		{
-			this.spritesheet = j5g3.spritesheet(assets.tiles);
 			this.stage.add(new Loading());
 			this.run();
 		}
