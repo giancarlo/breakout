@@ -20,11 +20,11 @@ var
 		logo: loader.img('logo.png'),
 
 		sound: {
-			brickDeath: loader.audio('brickDeath.wav'),
-			countdownBlip: loader.audio('countdownBlip.wav'),
-			powerdown: loader.audio('powerdown.wav'),
-			powerup: loader.audio('powerup.wav'),
-			recover: loader.audio('recover.wav')
+			brickDeath: loader.audio('brickDeath.mp3'),
+			countdownBlip: loader.audio('countdownBlip.mp3'),
+			powerdown: loader.audio('powerdown.mp3'),
+			powerup: loader.audio('powerup.mp3'),
+			recover: loader.audio('recover.mp3')
 		}
 	},
 	
