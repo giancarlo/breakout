@@ -28,8 +28,6 @@ var
 		}
 	},
 	
-	mods = [],
-	
 	fade = function(obj, a, cb) { 
 		return j5g3.tween({ 
 			target: obj,
@@ -78,6 +76,7 @@ var
 		on_collide: function()
 		{
 			// add another ball
+			game.level.balls.add(new Ball());
 			this.remove();
 		},
 		
@@ -92,22 +91,12 @@ var
 				this.remove();
 		},
 		
-		remove: function()
-		{
-			j5g3.Clip.prototype.remove.apply(this);
-			mods.slice(mods.indexOf(this), 1);
-		},
-			
 		setup: function()
 		{
 			this.add([
 				game.spritesheet.cut(this.sX, this.sY, 16, 16),
 				this.update.bind(this)
 			]);
-			
-			// Add this mod to the mods list so they can be removed on
-			// game reset
-			mods.push(this);
 		}
 		
 	}),
@@ -167,7 +156,7 @@ var
 			mod = ({ 1: Plus, 2: Minus })[j5g3.irand(4)]
 		;
 			if (mod)
-				game.level.add(new mod({ 
+				game.level.mods.add(new mod({ 
 					x: me.x+8 + me.parent.x, 
 					y: me.y+16 + me.parent.y
 				}));
@@ -202,67 +191,18 @@ var
 
 		update: function()
 		{
-		var
-			ball = this.ball,
-			coll = this.pad.collides(ball),
-			result
-		;
-			if (coll)
-			{
-				if (coll.ny)
-					ball.vy = coll.ny*Math.abs(ball.vy); 
-
-				ball.vx = ball.vx + coll.nx * 2 * Math.abs(ball.vx) + this.pad.vx;
-
-				ball.y += coll.ny * coll.penetration;
-				ball.x += coll.nx * coll.penetration;
-			} 
-			else if (ball.x > BOUNDS.right)
-			{
-				ball.x = BOUNDS.right;
-				ball.vx = -ball.vx;
-			}
-			else if (ball.x < BOUNDS.left)
-			{
-				ball.x = BOUNDS.left;
-				ball.vx = -ball.vx;
-			} else if (ball.y < BOUNDS.top)
-			{
-				ball.y = BOUNDS.top;
-				ball.vy = -ball.vy;
-			} else if (ball.y > BOUNDS.bottom)
-			{
-				this.lost();
-			} else if (this.blocks.collides(this.ball))
-			{
-				if ((result = j5g3.CollisionTest.Container.apply(this.blocks, [ this.ball ])))
-				{
-					if (result.ny)
-						ball.vy = result.ny*Math.abs(ball.vy); 
-	
-					ball.vx = ball.vx + result.nx * 2 * Math.abs(ball.vx);
-					result.A.play();
-					assets.sound.brickDeath.play();
-					this.score.add_score(10);
-				}
-			} else if (this.blocks.frame.next === this.blocks.frame)
-			{
-				this.won();
-			}
-			
-			if (ball.vx>MAXV) ball.vx = MAXV;
-			if (ball.vy>MAXV) ball.vy = MAXV;
-
-			ball.x += ball.vx;
-			ball.y += ball.vy;
 			this.pad.vx = 0;
 		},
 
 		lost: function()
 		{
+			if (!this.balls.is_frame_empty())
+				return;
+				
 		var
 			score = this.score.lives.text = parseInt(this.score.lives.text, 10)-1
 		;
+				
 			if (score===0)
 				this.game_over();
 			else
@@ -295,26 +235,24 @@ var
 		reset: function()
 		{
 			this._update.remove();
-			this.ball.reset(80, 240);
+			this.mods.remove();
+			this.balls.remove();
+			
 			this.pad.make_big(false);
 			this.do_count();
-			
-			for (var i=0; i<mods.length; i++)
-				mods[i].remove();
 		},
 
 		setup: function()
 		{
 			this.pad = new Pad({ x: 130, y: 368 });
 			this.score = new Score({ x: 20, y: 405 });
-			this.ball = new Ball({ x: 80, y: 240 });
 			this.blocks = new Blocks({ x: 60, y: 70 });
 			this.blocks.load_level();
 			
 			this._update = new j5g3.Action(this.update.bind(this));
 
 			this.add([
-				assets.bg, this.pad, this.blocks, this.ball, this.score,
+				assets.bg, this.pad, this.blocks, this.score,
 				j5g3.tween({ 
 					target: this, to: { alpha: 1 }, 
 					duration: 30,
@@ -326,7 +264,14 @@ var
 
 		start_game: function()
 		{
-			this.add(this._update);
+			this.add([ 
+				this.mods = j5g3.clip(),
+				this.balls = j5g3.clip(),
+				this._update
+			]);
+			
+			this.balls.add(new Ball());
+			
 			this.mice = mice(game.stage.canvas);
 			this.mice.mousemove = this.on_mouse.bind(this);
 		},
@@ -392,13 +337,72 @@ var
 		vy: 3,
 		width: 16,
 		height: 16,
+		x: 80,
+		y: 240,
 		
-		reset: function()
+		next_frame: function()
 		{
-			this.pos(80, 240);
-			this.vx = this.vy = 3;
-		},
+			j5g3.Clip.prototype.next_frame.apply(this);
+			
+		var
+			ball = this,
+			blocks = game.level.blocks,
+			pad = game.level.pad,
+			coll = pad.collides(ball),
+			result
+		;
+		
+			if (coll)
+			{
+				if (coll.ny)
+					ball.vy = coll.ny*Math.abs(ball.vy); 
 
+				ball.vx = ball.vx + coll.nx * 2 * Math.abs(ball.vx) + pad.vx;
+
+				ball.y += coll.ny * coll.penetration;
+				ball.x += coll.nx * coll.penetration;
+			} 
+			else if (ball.x > BOUNDS.right)
+			{
+				ball.x = BOUNDS.right;
+				ball.vx = -ball.vx;
+			}
+			else if (ball.x < BOUNDS.left)
+			{
+				ball.x = BOUNDS.left;
+				ball.vx = -ball.vx;
+			} else if (ball.y < BOUNDS.top)
+			{
+				ball.y = BOUNDS.top;
+				ball.vy = -ball.vy;
+			} else if (ball.y > BOUNDS.bottom)
+			{
+				this.remove();
+				game.level.lost();
+			} else if (blocks.collides(ball))
+			{
+				if ((result = j5g3.CollisionTest.Container.apply(blocks, [ ball ])))
+				{
+					if (result.ny)
+						ball.vy = result.ny*Math.abs(ball.vy); 
+	
+					ball.vx = ball.vx + result.nx * 2 * Math.abs(ball.vx);
+					result.A.play();
+					assets.sound.brickDeath.play();
+					game.level.score.add_score(10);
+				}
+			} else if (blocks.frame.next === blocks.frame)
+			{
+				game.level.won();
+			}
+			
+			if (ball.vx>MAXV) ball.vx = MAXV;
+			if (ball.vy>MAXV) ball.vy = MAXV;
+
+			ball.x += ball.vx;
+			ball.y += ball.vy;
+		},
+		
 		setup: function()
 		{
 			this.add(game.spritesheet.cut(48, 64, 16, 16));
