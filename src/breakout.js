@@ -28,6 +28,8 @@ var
 		}
 	},
 	
+	mods = [],
+	
 	fade = function(obj, a, cb) { 
 		return j5g3.tween({ 
 			target: obj,
@@ -37,7 +39,7 @@ var
 			on_remove: cb
 		});
 	},
-
+	
 	/* scenes */
 	Intro = j5g3.Clip.extend({ 
 		
@@ -65,6 +67,62 @@ var
 		}
 		
 	}), 
+	
+	Plus = j5g3.Clip.extend({
+		
+		// Spritesheet X pos
+		sX: 96,
+		// Spritesheet Y pos
+		sY: 96,
+		
+		on_collide: function()
+		{
+			// add another ball
+			this.remove();
+		},
+		
+		update: function()
+		{
+			this.y++;
+			
+			if (this.collides(game.level.pad))
+				this.on_collide();
+				
+			if (this.y>BOUNDS.bottom)
+				this.remove();
+		},
+		
+		remove: function()
+		{
+			j5g3.Clip.prototype.remove.apply(this);
+			mods.slice(mods.indexOf(this), 1);
+		},
+			
+		setup: function()
+		{
+			this.add([
+				game.spritesheet.cut(this.sX, this.sY, 16, 16),
+				this.update.bind(this)
+			]);
+			
+			// Add this mod to the mods list so they can be removed on
+			// game reset
+			mods.push(this);
+		}
+		
+	}),
+	
+	Minus = Plus.extend({
+		
+		sX: 112,
+		
+		on_collide: function()
+		{
+			game.level.pad.make_small();
+			this.remove();
+		}
+		
+	}),
 	
 	Blocks = j5g3.Clip.extend({
 		
@@ -104,7 +162,17 @@ var
 		
 		remove_block: function()
 		{
-			this.parent.remove();
+		var
+			me = this.parent,
+			mod = ({ 1: Plus, 2: Minus })[j5g3.irand(4)]
+		;
+			if (mod)
+				game.level.add(new mod({ 
+					x: me.x+8 + me.parent.x, 
+					y: me.y+16 + me.parent.y
+				}));
+				
+			me.remove();
 		},
 		
 		setup: function()
@@ -228,7 +296,11 @@ var
 		{
 			this._update.remove();
 			this.ball.reset(80, 240);
+			this.pad.make_big(false);
 			this.do_count();
+			
+			for (var i=0; i<mods.length; i++)
+				mods[i].remove();
 		},
 
 		setup: function()
@@ -346,12 +418,34 @@ var
 		vx: 0,
 		// Use more precise collision
 		collides: j5g3.CollisionQuery.AABB,
+		
+		make_big: function(sound)
+		{
+			if (sound !== false)
+				assets.sound.powerup.play();
+				
+			this.go(0);
+			this.width = 48;
+			this.maxx = WIDTH-this.width;
+		},
 
 		make_small: function()
 		{
+			assets.sound.powerdown.play();
 			this.go(1);
 			this.width = 32;
 			this.maxx = WIDTH-this.width;
+			
+			if (!this._smallTimer)
+				this.add(function() {
+					if (this.parent._smallTimer-- === 0)
+					{
+						this.parent.make_big();
+						this.remove();
+					}
+				});
+			
+			this._smallTimer = 300;
 		},
 		
 		setup: function()
