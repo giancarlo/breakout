@@ -118,7 +118,7 @@ var
 		var
 			xi = this.pad.x
 		;
-			this.pad.x = ev.clientX> this.pad.maxx ? this.pad.maxx : ev.clientX;
+			this.pad.x = this.mice.x> this.pad.maxx ? this.pad.maxx : this.mice.x;
 			this.pad.vx = (this.pad.x-xi)/3;
 		},
 
@@ -245,8 +245,8 @@ var
 		start_game: function()
 		{
 			this.add(this._update);
-
-			game.stage.on('mousemove', this.on_mouse, this);
+			this.mice = mice(game.stage.canvas);
+			this.mice.mousemove = this.on_mouse.bind(this);
 		},
 
 		start: function()
@@ -257,7 +257,7 @@ var
 		remove: function()
 		{
 			j5g3.Clip.prototype.remove.apply(this);
-			game.stage.un('mousemove', this.on_mouse);
+			this.mice.destroy();
 		}
 
 	}),
@@ -406,20 +406,48 @@ var
 		startFn: function()
 		{
 			this.spritesheet = j5g3.spritesheet(assets.tiles);
+			this.stage.add(new Loading());
 			this.run();
 		}
+	}),
+	
+	Loading = j5g3.Clip.extend({
+		
+		update: function()
+		{
+			this.parent.count.text = loader.progress;
+		},
+		
+		setup: function()
+		{
+		var
+			me = this
+		;
+			me.fill = '#eee';
+			me.count = j5g3.text({ 
+				text: '0%', font: '40px serif', x: 80, y: 160
+			});
+			
+			me.add([ 
+				j5g3.text({ text: 'Loading...', font: '20px serif', x: 50, y: 100 }),
+				me.count, me.update
+			]);
+			
+			loader.ready(function()
+			{
+				me.remove();
+				game.start();
+			});
+		}
+		
 	}),
 
 	game
 ;
 
-	loader.ready(function()
-	{
-		game = new Breakout({ 
-			stage_settings: { 
-				width: WIDTH, height: HEIGHT
-			}
-		});
-		
-		game.start();
+	game = new Breakout({ 
+		stage_settings: { 
+			width: WIDTH, height: HEIGHT
+		}
 	});
+	
