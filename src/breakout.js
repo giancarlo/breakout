@@ -211,6 +211,9 @@ var
 		
 		won: function()
 		{
+			if (!LEVELS[this.blocks.level+1])
+				this.game_over();
+
 			this.blocks.load_level(this.blocks.level+1);
 			this.score.level.text = this.blocks.level+1;
 			this.score.add_score(100);
