@@ -52,7 +52,7 @@ var
 				fade(this, 1)
 			]);
 			
-			game.stage.on('click', game.start_level, game);
+			this.mice = mice(game.stage.canvas, { click: game.start_level.bind(game) });
 		},
 		
 		remove: function()
@@ -60,8 +60,8 @@ var
 			this.add(fade(this, 0, function() { 
 				j5g3.Clip.prototype.remove.apply(this.parent);
 			}));
-			
-			game.stage.un('click', game.start_level);
+
+			this.mice.destroy();
 		}
 		
 	}), 
@@ -276,7 +276,7 @@ var
 			this.balls.add(new Ball());
 			
 			this.mice = mice(game.stage.canvas);
-			this.mice.mousemove = this.on_mouse.bind(this);
+			this.mice.move = this.on_mouse.bind(this);
 		},
 
 		start: function()
