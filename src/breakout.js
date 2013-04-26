@@ -80,7 +80,7 @@ var
 			this.remove();
 		},
 		
-		update: function()
+		update_frame: function()
 		{
 			this.y++;
 			
@@ -94,8 +94,7 @@ var
 		setup: function()
 		{
 			this.add([
-				game.spritesheet.cut(this.sX, this.sY, 16, 16),
-				this.update.bind(this)
+				game.spritesheet.cut(this.sX, this.sY, 16, 16)
 			]);
 		}
 		
@@ -189,9 +188,10 @@ var
 			this.pad.vx = (this.pad.x-xi)/3;
 		},
 
-		update: function()
+		update_frame: function()
 		{
-			this.pad.vx = 0;
+			if (this.mice)
+				this.pad.vx = 0;
 		},
 
 		lost: function()
@@ -237,7 +237,6 @@ var
 
 		reset: function()
 		{
-			this._update.remove();
 			this.mods.remove();
 			this.balls.remove();
 			
@@ -251,8 +250,6 @@ var
 			this.score = new Score({ x: 20, y: 405 });
 			this.blocks = new Blocks({ x: 60, y: 70 });
 			this.blocks.load_level();
-			
-			this._update = new j5g3.Action(this.update.bind(this));
 
 			this.add([
 				assets.bg, this.pad, this.blocks, this.score,
@@ -269,8 +266,7 @@ var
 		{
 			this.add([ 
 				this.mods = j5g3.clip(),
-				this.balls = j5g3.clip(),
-				this._update
+				this.balls = j5g3.clip()
 			]);
 			
 			this.balls.add(new Ball());
@@ -343,10 +339,8 @@ var
 		x: 80,
 		y: 240,
 		
-		next_frame: function()
+		update_frame: function()
 		{
-			j5g3.Clip.prototype.next_frame.apply(this);
-			
 		var
 			ball = this,
 			blocks = game.level.blocks,
@@ -394,7 +388,7 @@ var
 					assets.sound.brickDeath.play();
 					game.level.score.add_score(10);
 				}
-			} else if (blocks.frame.next === blocks.frame)
+			} else if (blocks.is_frame_empty())
 			{
 				game.level.won();
 			}
@@ -524,9 +518,9 @@ var
 	
 	Loading = j5g3.Clip.extend({
 		
-		update: function()
+		update_frame: function()
 		{
-			this.parent.count.text = loader.progress;
+			this.count.text = loader.progress;
 		},
 		
 		setup: function()
@@ -541,7 +535,7 @@ var
 			
 			me.add([ 
 				j5g3.text({ text: 'Loading...', font: '20px serif', x: 50, y: 100 }),
-				me.count, me.update
+				me.count 
 			]);
 			
 			loader.ready(function()
@@ -557,6 +551,7 @@ var
 ;
 
 	game = new Breakout({ 
+		fps: 60,
 		stage_settings: { 
 			width: WIDTH, height: HEIGHT
 		}
