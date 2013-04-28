@@ -52,7 +52,7 @@ var
 				fade(this, 1)
 			]);
 			
-			this.mice = mice(game.stage.canvas, { click: game.start_level.bind(game) });
+			this.mice = mice(game.stage.canvas, { on_fire: game.start_level.bind(game) });
 		},
 		
 		remove: function()
@@ -213,11 +213,13 @@ var
 		{
 			if (!LEVELS[this.blocks.level+1])
 				this.game_over();
-
-			this.blocks.load_level(this.blocks.level+1);
-			this.score.level.text = this.blocks.level+1;
-			this.score.add_score(100);
-			this.reset();
+			else
+			{
+				this.blocks.load_level(this.blocks.level+1);
+				this.score.level.text = this.blocks.level+1;
+				this.score.add_score(100);
+				this.reset();
+			}
 		},
 
 		game_over: function()
@@ -273,6 +275,8 @@ var
 			
 			this.mice = mice(game.stage.canvas);
 			this.mice.move = this.on_mouse.bind(this);
+			this.mice.module.mouse.capture_move = true;
+			this.mice.module.mouse.x_threshold = 1;
 		},
 
 		start: function()
